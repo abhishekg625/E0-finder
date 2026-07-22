@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "update-pumps": "node scripts/update-pumps.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
