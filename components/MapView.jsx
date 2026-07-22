@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import PumpCard from "./PumpCard";
 
 /* Leaflet touches `window` at import, so it must load only in the browser.
    We import it dynamically inside useEffect — safe for Next static export. */
@@ -225,14 +226,7 @@ export default function MapView({
       <div ref={mapEl} className="map" role="application" aria-label="Map of fuel pumps" />
       {showList && (
         <ul className="results">
-          {displayList.slice(0, 30).map((p) => (
-            <li key={p.id} className="card">
-              <div className="name">{p.name}</div>
-              <div className="addr">{[p.brand, p.addr || p.city].filter(Boolean).join(" · ")}</div>
-              <E0Badge status={p.e0} />
-              {p.d != null && <div className="dist">▸ {p.d.toFixed(1)} km away</div>}
-            </li>
-          ))}
+          {displayList.slice(0, 30).map((p) => <PumpCard key={p.id} pump={p} />)}
           {displayList.length === 0 && allPumps.length > 0 && (
             <li className="card">No pumps match these filters.</li>
           )}
@@ -240,12 +234,6 @@ export default function MapView({
       )}
     </div>
   );
-}
-
-function E0Badge({ status }) {
-  if (status === true) return <span className="badge e0-yes">E0 confirmed</span>;
-  if (status === false) return <span className="badge e0-no">Not E0</span>;
-  return <span className="badge e0-unknown">E0 unverified</span>;
 }
 
 // Simple fuel-pump glyph — an inline SVG so it needs no external asset

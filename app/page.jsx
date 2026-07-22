@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getData } from "../lib/data";
 
 export default async function Home() {
-  const { stats } = await getData();
+  const { stats, groups } = await getData();
+  const popularCities = groups.filter((g) => g.slug !== "unlisted").slice(0, 12);
   return (
     <>
       <section className="hero">
@@ -20,6 +21,15 @@ export default async function Home() {
           <Link className="btn ghost" href="/cities/">Browse by city</Link>
         </div>
         <p className="fineprint">No login. No signup. Open data, open source.</p>
+
+        <p className="fineprint" style={{ marginTop: 22 }}>Popular cities</p>
+        <div className="popular-cities">
+          {popularCities.map((g) => (
+            <Link key={g.slug} href={`/city/${g.slug}/`}>
+              {g.city} <span style={{ opacity: 0.6 }}>({g.pumps.length})</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="rail">

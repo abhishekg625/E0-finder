@@ -61,7 +61,9 @@ const slugify = (s) => {
 
 const YES_NO = (v) => (v === "yes" ? true : v === "no" ? false : null);
 
-async function fetchFromOSM() {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchFromOSM(attempt = 1) {
   const res = await fetch(OVERPASS, {
     method: "POST",
     headers: {
@@ -70,7 +72,28 @@ async function fetchFromOSM() {
     },
     body: OVERPASS_QUERY,
   });
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
+  if (!res.ok) {
+    if ([502, 503, 504].includes(res.status) && attempt < 5) {
+      const wait = attempt * 20000;
+      console.warn(`[update-pumps] Overpass HTTP ${res.status} (attempt ${attempt}); retrying in ${wait / 1000}s...`);
+      await sleep(wait);
+      return fetchFromOSM(attempt + 1);
+    }
+    throw new Error(`Overpass HTTP ${res.status}`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("json")) {
+    // Overpass returns a 200 OK HTML error page when its server is too
+    // busy to handle the query — not a real failure, just needs a retry.
+    const text = await res.text();
+    if (attempt >= 5) throw new Error(`Overpass returned non-JSON after ${attempt} attempts: ${text.slice(0, 200)}`);
+    const wait = attempt * 20000;
+    console.warn(`[update-pumps] Overpass busy (attempt ${attempt}); retrying in ${wait / 1000}s...`);
+    await sleep(wait);
+    return fetchFromOSM(attempt + 1);
+  }
+
   const json = await res.json();
   return json.elements || [];
 }
@@ -104,6 +127,7 @@ function normalize(el) {
       speed100: null,
     },
     e0: e0Tag === "yes" ? true : e0Tag === "no" ? false : "unknown",
+    phone: t.phone || t["contact:phone"] || "",
     verified: false,
     source: "osm",
   };

@@ -2,12 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getData } from "../../../lib/data";
 import MapView from "../../../components/MapView";
-
-function E0Badge({ status }) {
-  if (status === true) return <span className="badge e0-yes">E0 confirmed</span>;
-  if (status === false) return <span className="badge e0-no">Not E0</span>;
-  return <span className="badge e0-unknown">E0 unverified</span>;
-}
+import PumpCard from "../../../components/PumpCard";
 
 export async function generateStaticParams() {
   const { groups } = await getData();
@@ -52,22 +47,8 @@ export default async function CityPage({ params }) {
 
       <MapView pumps={light} initial={center} zoom={12} showList={false} />
 
-      <ul className="pump-list">
-        {g.pumps.map((p) => (
-          <li key={p.id} className="pump">
-            <div className="p-name">{p.name}</div>
-            <div className="p-meta">{[p.brand, p.addr || p.city].filter(Boolean).join(" · ")}</div>
-            <E0Badge status={p.e0} />
-            <a
-              className="p-dir"
-              href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=17/${p.lat}/${p.lon}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open in map ↗
-            </a>
-          </li>
-        ))}
+      <ul className="results">
+        {g.pumps.map((p) => <PumpCard key={p.id} pump={p} />)}
       </ul>
     </>
   );
