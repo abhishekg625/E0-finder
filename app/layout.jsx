@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import ThemeToggle from "../components/ThemeToggle";
+import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 
 const THEME_INIT_SCRIPT = `
 (function(){
@@ -40,6 +41,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
+        <ServiceWorkerRegister />
         <a className="skip" href="#main">Skip to content</a>
         <header className="site-head">
           <Link className="wordmark" href="/">E0<span>·</span>Finder</Link>

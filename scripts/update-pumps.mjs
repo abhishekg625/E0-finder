@@ -26,6 +26,31 @@ out center tags;`;
 const titleCase = (s) =>
   s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).trim();
 
+// OSM has ~300 raw brand strings for a handful of actual companies (typos,
+// abbreviations, case variants). Collapse the unambiguous ones so the
+// brand filter is usable; leave anything not confidently matched as-is
+// rather than guessing.
+const BRAND_PATTERNS = [
+  [/indian\s*oil|\biocl\b|\bioc\b/i, "Indian Oil (IOCL)"],
+  [/hindust[ha]n\s*petro|\bhpcl\b|^hp$/i, "HP (HPCL)"],
+  [/bharath?\s*petro|\bbpcl\b/i, "Bharat Petroleum (BPCL)"],
+  [/nayara|essar/i, "Nayara Energy"],
+  [/jio.?bp|^bp$/i, "bp / Jio-bp"],
+  [/shell/i, "Shell"],
+  [/reliance/i, "Reliance"],
+  [/\bigl\b|indraprastha\s*gas/i, "Indraprastha Gas (IGL)"],
+  [/\bgail\b/i, "GAIL"],
+];
+
+function canonicalBrand(raw) {
+  const b = (raw || "").trim();
+  if (!b) return "";
+  for (const [re, canonical] of BRAND_PATTERNS) {
+    if (re.test(b)) return canonical;
+  }
+  return titleCase(b);
+}
+
 const COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
 const slugify = (s) => {
   const slug = s.toLowerCase().normalize("NFKD").replace(COMBINING_MARKS, "")
@@ -62,7 +87,7 @@ function normalize(el) {
 
   return {
     id: `osm-${el.type}-${el.id}`,
-    brand: t.brand || t.operator || "",
+    brand: canonicalBrand(t.brand || t.operator || ""),
     name: t.name || t.brand || t.operator || "Fuel station",
     addr: [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" "),
     city,

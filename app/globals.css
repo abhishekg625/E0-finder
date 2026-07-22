@@ -59,6 +59,20 @@ h1{font-size:clamp(1.8rem,5vw,3rem);line-height:1.08;margin:.2em 0;font-weight:8
 .card .dist{font-family:var(--mono);color:var(--octane);font-weight:700;margin-top:6px}
 .p-dir{display:inline-block;margin-top:8px;font-size:.85rem;color:var(--octane);text-decoration:none}
 
+.filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:18px 0}
+.filter-row .search{flex:1 1 220px;background:var(--panel);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 12px;font-size:.95rem;font-family:inherit}
+.filter-row select{background:var(--panel);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px 12px;font-size:.95rem;font-family:inherit}
+.filter-row .toggle{display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted);white-space:nowrap}
+
+.badge{display:inline-block;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:6px}
+.badge.e0-yes{background:#1f3d1a;color:#7ce07a}
+.badge.e0-no{background:#3d1a1a;color:#ff8a5c}
+.badge.e0-unknown{background:var(--line);color:var(--muted)}
+:root[data-theme="light"] .badge.e0-yes{background:#dcf5da;color:#146b0f}
+:root[data-theme="light"] .badge.e0-no{background:#fbe0d4;color:#963210}
+
 .city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px}
 .city-card{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);
   border-radius:12px;padding:14px 16px;text-decoration:none}
@@ -72,6 +86,8 @@ h1{font-size:clamp(1.8rem,5vw,3rem);line-height:1.08;margin:.2em 0;font-weight:8
 .pin{width:24px;height:24px;display:grid;place-items:center;border-radius:50% 50% 50% 0;
   transform:rotate(-45deg);background:var(--octane);border:2px solid #000;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .pin b{transform:rotate(45deg);font-family:var(--mono);font-size:10px;color:#000}
+.pin-unknown{background:var(--muted)}
+.pin-no{background:var(--danger)}
 
 .site-foot{border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;padding:24px 20px;text-align:center}
 .site-foot a{color:var(--octane)}

@@ -1,26 +1,25 @@
-import { getData } from "../../lib/data";
 import MapView from "../../components/MapView";
 
 export const metadata = {
-  title: "Find ethanol-free petrol near you",
+  title: "Find petrol pumps near you",
   description:
-    "Share your location or browse the map to find the closest ethanol-free (E0) petrol pumps.",
+    "Search or browse petrol pumps across India, filter by brand, and see which are confirmed ethanol-free (E0).",
   alternates: { canonical: "/find/" },
 };
 
-export default async function FindPage() {
-  const { pumps } = await getData();
-  const light = pumps.map((p) => ({ name: p.name, lat: p.lat, lon: p.lon, addr: p.addr, city: p.city }));
+export default function FindPage() {
   return (
     <>
       <section className="page-head">
-        <h1>Find ethanol-free petrol near you</h1>
+        <h1>Find a pump near you</h1>
         <p className="lede">
-          Share your location to sort the closest pumps first, or just pan the map —
-          no location needed to look around.
+          Share your location to sort the closest pumps first, filter by brand, or
+          search by name — no location needed to look around. Pumps confirmed
+          ethanol-free are marked <strong>E0 confirmed</strong>; everything else is
+          unverified, not ruled out.
         </p>
       </section>
-      <MapView pumps={light} locate />
+      <MapView dataUrl="/data/pumps.json" locate filters />
     </>
   );
 }

@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
 /* Leaflet touches `window` at import, so it must load only in the browser.
    We import it dynamically inside useEffect — safe for Next static export. */
+
+const KNOWN_BRANDS = [
+  "Indian Oil (IOCL)",
+  "HP (HPCL)",
+  "Bharat Petroleum (BPCL)",
+  "Nayara Energy",
+  "bp / Jio-bp",
+  "Shell",
+  "Reliance",
+  "Indraprastha Gas (IGL)",
+  "GAIL",
+];
 
 function haversineKm(aLat, aLon, bLat, bLon) {
   const R = 6371;
@@ -17,16 +29,89 @@ function haversineKm(aLat, aLon, bLat, bLon) {
   return R * 2 * Math.asin(Math.sqrt(s));
 }
 
-export default function MapView({ pumps = [], locate = false, initial = [22.35, 78.66], zoom = 5 }) {
+function brandBucket(brand) {
+  if (!brand) return "Unbranded";
+  return KNOWN_BRANDS.includes(brand) ? brand : "Other";
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/**
+ * pumps: pre-loaded list (used for small per-city subsets).
+ * dataUrl: fetched client-side instead (used for the nationwide /find/ map,
+ * so the ~4.5 MB dataset never has to be embedded in page HTML).
+ * filters: when true, shows search/brand/E0 controls above the map.
+ */
+export default function MapView({
+  pumps: initialPumps = [],
+  dataUrl = null,
+  locate = false,
+  filters = false,
+  showList = true,
+  initial = [22.35, 78.66],
+  zoom = 5,
+}) {
   const mapEl = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const LRef = useRef(null);
   const userDotRef = useRef(null);
-  const [status, setStatus] = useState(locate ? "Loading map…" : "");
-  const [sorted, setSorted] = useState(null); // nearest-first list once located
-  const [showRefresh, setShowRefresh] = useState(false);
   const originRef = useRef(null);
+
+  const [allPumps, setAllPumps] = useState(initialPumps);
+  const [status, setStatus] = useState(dataUrl ? "Loading pump data…" : "");
+  const [origin, setOrigin] = useState(null);
+  const [query, setQuery] = useState("");
+  const [brand, setBrand] = useState("all");
+  const [e0Only, setE0Only] = useState(false);
+
+  // fetch the full dataset client-side when a dataUrl is given
+  useEffect(() => {
+    if (!dataUrl) return;
+    let cancelled = false;
+    fetch(dataUrl)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
+        if (cancelled) return;
+        setAllPumps(json.pumps || []);
+        setStatus(`${(json.pumps || []).length} pumps loaded.`);
+      })
+      .catch((e) => {
+        if (!cancelled) setStatus(`Couldn't load pump data (${e.message}). Try again shortly.`);
+      });
+    return () => { cancelled = true; };
+  }, [dataUrl]);
+
+  const brandOptions = useMemo(() => {
+    const present = new Set(allPumps.map((p) => brandBucket(p.brand)));
+    const ordered = [...KNOWN_BRANDS.filter((b) => present.has(b))];
+    if (present.has("Other")) ordered.push("Other");
+    if (present.has("Unbranded")) ordered.push("Unbranded");
+    return ordered;
+  }, [allPumps]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allPumps.filter((p) => {
+      if (brand !== "all" && brandBucket(p.brand) !== brand) return false;
+      if (e0Only && p.e0 !== true) return false;
+      if (q && !`${p.name} ${p.city} ${p.brand} ${p.addr}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [allPumps, query, brand, e0Only]);
+
+  const displayList = useMemo(() => {
+    if (!origin) return filtered;
+    return filtered
+      .map((p) => ({ ...p, d: haversineKm(origin.lat, origin.lon, p.lat, p.lon) }))
+      .sort((a, b) => a.d - b.d);
+  }, [filtered, origin]);
 
   // init map once
   useEffect(() => {
@@ -43,8 +128,6 @@ export default function MapView({ pumps = [], locate = false, initial = [22.35, 
       }).addTo(map);
       layerRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
-      drawMarkers(pumps);
-      if (locate) setStatus(`${pumps.length} ethanol-free pumps on the map.`);
     })();
     return () => {
       cancelled = true;
@@ -53,32 +136,27 @@ export default function MapView({ pumps = [], locate = false, initial = [22.35, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function pinIcon() {
+  // redraw markers whenever the filtered/sorted list changes
+  useEffect(() => {
     const L = LRef.current;
-    return L.divIcon({
-      className: "",
-      html: '<div class="pin"><b>E0</b></div>',
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
-      popupAnchor: [0, -22],
-    });
-  }
-
-  function drawMarkers(list, fit = true) {
-    const L = LRef.current;
-    if (!L || !layerRef.current) return;
+    if (!L || !layerRef.current || !mapRef.current) return;
     layerRef.current.clearLayers();
+    const capped = displayList.slice(0, 500); // keep the map responsive on the nationwide view
     const markers = [];
-    list.forEach((p) => {
-      const m = L.marker([p.lat, p.lon], { icon: pinIcon() }).addTo(layerRef.current);
+    capped.forEach((p) => {
+      const m = L.marker([p.lat, p.lon], { icon: pinIcon(L, p.e0) }).addTo(layerRef.current);
       const dist = p.d != null ? `<br>${p.d.toFixed(1)} km away` : "";
-      m.bindPopup(`<b>${escapeHtml(p.name)}</b><br>${escapeHtml(p.addr || p.city || "")}${dist}`);
+      const e0Label = p.e0 === true ? "E0 confirmed" : p.e0 === false ? "Not E0" : "E0 status unknown";
+      m.bindPopup(
+        `<b>${escapeHtml(p.name)}</b><br>${escapeHtml(p.brand || "")}<br>${escapeHtml(p.addr || p.city || "")}<br>${e0Label}${dist}`
+      );
       markers.push(m);
     });
-    if (fit && markers.length) {
+    if (!origin && markers.length) {
       try { mapRef.current.fitBounds(L.featureGroup(markers).getBounds().pad(0.2)); } catch {}
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayList]);
 
   function onLocate() {
     if (!("geolocation" in navigator)) {
@@ -90,20 +168,14 @@ export default function MapView({ pumps = [], locate = false, initial = [22.35, 
       (pos) => {
         const o = { lat: pos.coords.latitude, lon: pos.coords.longitude };
         originRef.current = o;
+        setOrigin(o);
         const L = LRef.current;
         if (userDotRef.current) mapRef.current.removeLayer(userDotRef.current);
         userDotRef.current = L.circleMarker([o.lat, o.lon], {
           radius: 8, color: "#ffd23f", fillColor: "#ffd23f", fillOpacity: 0.9,
         }).addTo(mapRef.current).bindPopup("You are here");
-
-        const near = pumps
-          .map((p) => ({ ...p, d: haversineKm(o.lat, o.lon, p.lat, p.lon) }))
-          .sort((a, b) => a.d - b.d);
-        setSorted(near);
-        drawMarkers(near);
         mapRef.current.setView([o.lat, o.lon], 11);
-        setStatus(near[0] ? `Closest pump: ${near[0].d.toFixed(1)} km away.` : "No pumps found nearby.");
-        setShowRefresh(true);
+        setStatus("Showing the closest pumps first.");
       },
       (err) => {
         setStatus(
@@ -116,76 +188,70 @@ export default function MapView({ pumps = [], locate = false, initial = [22.35, 
     );
   }
 
-  async function onLiveRefresh() {
-    const o = originRef.current;
-    if (!o) return;
-    setStatus("Fetching latest ethanol-free stations near you from OpenStreetMap…");
-    const q =
-      "[out:json][timeout:25];(" +
-      `node["amenity"="fuel"]["fuel:e0"="yes"](around:30000,${o.lat},${o.lon});` +
-      `node["amenity"="fuel"]["fuel:ethanol_free"="yes"](around:30000,${o.lat},${o.lon});` +
-      ");out center tags;";
-    try {
-      const r = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST", headers: { "Content-Type": "text/plain" }, body: q,
-      });
-      if (!r.ok) throw new Error(`Overpass ${r.status}`);
-      const d = await r.json();
-      const live = (d.elements || [])
-        .map((e) => {
-          const t = e.tags || {};
-          return {
-            name: t.name || t.brand || "E0 station",
-            lat: e.lat ?? e.center?.lat,
-            lon: e.lon ?? e.center?.lon,
-            addr: [t["addr:street"], t["addr:city"]].filter(Boolean).join(", "),
-          };
-        })
-        .filter((p) => p.lat != null)
-        .map((p) => ({ ...p, d: haversineKm(o.lat, o.lon, p.lat, p.lon) }))
-        .sort((a, b) => a.d - b.d);
-      if (live.length) {
-        setSorted(live);
-        drawMarkers(live);
-        setStatus(`Live: ${live.length} tagged station(s) within 30 km.`);
-      } else {
-        setStatus("No live OSM-tagged stations within 30 km. Showing the mapped set.");
-      }
-    } catch (e) {
-      setStatus(`Live refresh failed: ${e.message}`);
-    }
-  }
-
-  const list = sorted;
-
   return (
     <div>
+      {filters && (
+        <div className="filter-row">
+          <input
+            className="search"
+            type="search"
+            placeholder="Search by name, brand, or city…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search pumps"
+          />
+          <select value={brand} onChange={(e) => setBrand(e.target.value)} aria-label="Filter by brand">
+            <option value="all">All brands</option>
+            {brandOptions.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+          <label className="toggle">
+            <input type="checkbox" checked={e0Only} onChange={(e) => setE0Only(e.target.checked)} />
+            E0-confirmed only
+          </label>
+        </div>
+      )}
       {locate && (
         <div className="cta-row">
           <button className="btn primary" type="button" onClick={onLocate}>Use my location</button>
-          {showRefresh && (
-            <button className="btn ghost" type="button" onClick={onLiveRefresh}>Refresh live from OSM</button>
-          )}
         </div>
       )}
-      {locate && <p className="status" role="status" aria-live="polite">{status}</p>}
-      <div ref={mapEl} className="map" role="application" aria-label="Map of ethanol-free pumps" />
-      {list && (
+      {(locate || dataUrl) && <p className="status" role="status" aria-live="polite">{status}</p>}
+      <div ref={mapEl} className="map" role="application" aria-label="Map of fuel pumps" />
+      {showList && (
         <ul className="results">
-          {list.slice(0, 30).map((p, i) => (
-            <li key={i} className="card">
+          {displayList.slice(0, 30).map((p) => (
+            <li key={p.id} className="card">
               <div className="name">{p.name}</div>
-              <div className="addr">{p.addr || p.city}</div>
+              <div className="addr">{[p.brand, p.addr || p.city].filter(Boolean).join(" · ")}</div>
+              <E0Badge status={p.e0} />
               {p.d != null && <div className="dist">▸ {p.d.toFixed(1)} km away</div>}
             </li>
           ))}
+          {displayList.length === 0 && allPumps.length > 0 && (
+            <li className="card">No pumps match these filters.</li>
+          )}
         </ul>
       )}
     </div>
   );
 }
 
-function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function E0Badge({ status }) {
+  if (status === true) return <span className="badge e0-yes">E0 confirmed</span>;
+  if (status === false) return <span className="badge e0-no">Not E0</span>;
+  return <span className="badge e0-unknown">E0 unverified</span>;
+}
+
+function pinIcon(L, e0) {
+  const cls = e0 === true ? "pin pin-yes" : e0 === false ? "pin pin-no" : "pin pin-unknown";
+  const label = e0 === true ? "E0" : "?";
+  return L.divIcon({
+    className: "",
+    html: `<div class="${cls}"><b>${label}</b></div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 24],
+    popupAnchor: [0, -22],
+  });
 }

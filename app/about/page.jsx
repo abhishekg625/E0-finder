@@ -20,12 +20,16 @@ export default async function AboutPage() {
 
       <h2>Where the data comes from</h2>
       <p>
-        Pump locations are pulled from{" "}
-        <a href="https://www.openstreetmap.org/" rel="noopener noreferrer">OpenStreetMap</a>{" "}
-        — specifically stations tagged <code>fuel:e0=yes</code> or{" "}
-        <code>fuel:ethanol_free=yes</code> — using the Overpass API, and rebuilt on each
-        deploy. Coverage depends entirely on what volunteers have tagged, so it is{" "}
-        <strong>incomplete</strong>.
+        Pump locations for all of India come from{" "}
+        <a href="https://www.openstreetmap.org/" rel="noopener noreferrer">OpenStreetMap</a>,
+        via the Overpass API. A station is marked <strong>E0 confirmed</strong> only when it
+        carries OSM's <code>fuel:e0=yes</code> or <code>fuel:ethanol_free=yes</code> tag.
+      </p>
+      <p>
+        As of this build, essentially no stations in India have that tag yet —{" "}
+        {stats.e0Known} confirmed out of {stats.total} pumps mapped. That is not the same as
+        confirmed <em>not</em> ethanol-free: it almost always just means nobody has recorded
+        it. Treat every unbadged pump as <strong>unverified</strong>, not ruled out.
       </p>
 
       <h2>Please read — this is unofficial</h2>
@@ -38,9 +42,10 @@ export default async function AboutPage() {
 
       <h2>Improve the map</h2>
       <p>
-        Found a pump that’s missing or wrong? The best fix is to add or correct the tag on
-        OpenStreetMap itself — every build here picks up those edits. Currently mapping{" "}
-        {stats.total} pumps across {stats.cities} cities.
+        Found a pump that's missing, wrong, or actually stocks E0? The best fix is to add or
+        correct the tag on OpenStreetMap itself — the dataset here is regenerated from OSM
+        periodically (via <code>npm run update-pumps</code>), so edits get picked up on the
+        next refresh. Currently mapping {stats.total} pumps across {stats.cities} cities.
       </p>
     </section>
   );
