@@ -113,6 +113,8 @@ export default function MapView({
       .sort((a, b) => a.d - b.d);
   }, [filtered, origin]);
 
+  const [mapReady, setMapReady] = useState(false);
+
   // init map once
   useEffect(() => {
     let cancelled = false;
@@ -128,6 +130,7 @@ export default function MapView({
       }).addTo(map);
       layerRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
+      setMapReady(true);
     })();
     return () => {
       cancelled = true;
@@ -136,7 +139,8 @@ export default function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // redraw markers whenever the filtered/sorted list changes
+  // redraw markers whenever the filtered/sorted list changes, or once the
+  // (asynchronously loaded) map first becomes ready
   useEffect(() => {
     const L = LRef.current;
     if (!L || !layerRef.current || !mapRef.current) return;
@@ -156,7 +160,7 @@ export default function MapView({
       try { mapRef.current.fitBounds(L.featureGroup(markers).getBounds().pad(0.2)); } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayList]);
+  }, [displayList, mapReady]);
 
   function onLocate() {
     if (!("geolocation" in navigator)) {
@@ -244,12 +248,21 @@ function E0Badge({ status }) {
   return <span className="badge e0-unknown">E0 unverified</span>;
 }
 
+// Simple fuel-pump glyph — an inline SVG so it needs no external asset
+// (keeps the offline service worker cache self-contained).
+const PUMP_SVG = `
+<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="4" y="3" width="10" height="18" rx="1.2"/>
+  <rect x="6.5" y="5.5" width="5" height="4" rx="0.5"/>
+  <line x1="6" y1="13" x2="12" y2="13"/>
+  <path d="M14 8h2.5a1.5 1.5 0 0 1 1.5 1.5V17a1.5 1.5 0 0 0 3 0V10l-2.5-2.5"/>
+</svg>`;
+
 function pinIcon(L, e0) {
   const cls = e0 === true ? "pin pin-yes" : e0 === false ? "pin pin-no" : "pin pin-unknown";
-  const label = e0 === true ? "E0" : "?";
   return L.divIcon({
     className: "",
-    html: `<div class="${cls}"><b>${label}</b></div>`,
+    html: `<div class="${cls}">${PUMP_SVG}</div>`,
     iconSize: [24, 24],
     iconAnchor: [12, 24],
     popupAnchor: [0, -22],
