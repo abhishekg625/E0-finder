@@ -1,0 +1,13 @@
+{
+  "note": "Fallback sample used only when the live OpenStreetMap pull is unavailable. These are illustrative, UNVERIFIED points. Real builds replace this with live OSM data.",
+  "pumps": [
+    { "id": "seed-1", "name": "IOCL XP100 Outlet (sample)", "brand": "IndianOil", "lat": 28.6304, "lon": 77.2177, "city": "Delhi", "state": "Delhi", "addr": "Connaught Place", "source": "sample" },
+    { "id": "seed-2", "name": "HP Power Outlet (sample)", "brand": "HP", "lat": 19.0596, "lon": 72.8295, "city": "Mumbai", "state": "Maharashtra", "addr": "Bandra West", "source": "sample" },
+    { "id": "seed-3", "name": "BPCL Speed Outlet (sample)", "brand": "Bharat Petroleum", "lat": 12.9352, "lon": 77.6245, "city": "Bengaluru", "state": "Karnataka", "addr": "Koramangala", "source": "sample" },
+    { "id": "seed-4", "name": "IOCL XP100 Outlet (sample)", "brand": "IndianOil", "lat": 13.0418, "lon": 80.2337, "city": "Chennai", "state": "Tamil Nadu", "addr": "T. Nagar", "source": "sample" },
+    { "id": "seed-5", "name": "HP Power Outlet (sample)", "brand": "HP", "lat": 22.5726, "lon": 88.4271, "city": "Kolkata", "state": "West Bengal", "addr": "Salt Lake", "source": "sample" },
+    { "id": "seed-6", "name": "IOCL XP100 Outlet (sample)", "brand": "IndianOil", "lat": 17.4239, "lon": 78.4738, "city": "Hyderabad", "state": "Telangana", "addr": "Banjara Hills", "source": "sample" },
+    { "id": "seed-7", "name": "BPCL Speed Outlet (sample)", "brand": "Bharat Petroleum", "lat": 18.5308, "lon": 73.8475, "city": "Pune", "state": "Maharashtra", "addr": "Koregaon Park", "source": "sample" },
+    { "id": "seed-8", "name": "IOCL XP100 Outlet (sample)", "brand": "IndianOil", "lat": 21.2497, "lon": 81.6300, "city": "Raipur", "state": "Chhattisgarh", "addr": "Civil Lines", "source": "sample" }
+  ]
+}
